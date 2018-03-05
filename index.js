@@ -9,30 +9,52 @@
  * (c) Andras Kemeny, subpardaemon@gmail.com
  */
 
-
 /* global process */
 
-if (typeof module!=='undefined' && typeof module.exports!=='undefined') {
-    var fs = require('fs'),
-	os = require('os');
-}
+var fs = require('fs'),
+    os = require('os');
+
+/**
+ * The logger instance creator.
+ * 
+ * The opts.targets configuration:
+ * ['*|!not,these,levels|these,levels','filename|?consolelog|?consolerror|?consoledebug|?consoletrace'[,'log_%format']]
+ * 
+ * Possible levels: 'trace','debug','info','info','warn','error','fatal','file'.
+ * 
+ * Multiple entries for one level is permitted (logging to many locations).
+ * 
+ * Filename substitutions:
+ *  %p = process ID
+ *  %h = hostname
+ *  %L = log level
+ *  %l = this.logLocation (only for 'file' type logs) 
+ * 
+ * Format substitutions for the opts.format configuration:
+ *  %t = Date.toDateString()+' '+Date.toLocaleTimeString()
+ *  %T = Date.toISOString()
+ *  %j = Date.toJSON()
+ *  %p = process ID
+ *  %h = hostname
+ *  %L = log level
+ *  %E = system EOL
+ *  %S = trace stack
+ *  %m = message
+ * 
+ * @constructor
+ * @param {Object} opts
+ * @param {Array} opts.targets
+ * @param {String} [opts.logLocation="./"]
+ * @param {String} [opts.format="[%L][%p@%h] %t: %m%E"]
+ * @param {Boolean} [opts.consoleNoFormat=false]
+ * @param {Boolean} [opts.trace=false]
+ * @param {Boolean} [opts.keepLast=false]
+ * @param {Boolean} [opts.debug=true]
+ * @param {Number} [opts.debugLevel=-1]
+ * @returns {swatk6_logger}
+ */
 function swatk6_logger(opts) {
     var n, i, t, tt, x, neg, defaults = {
-	/*
-	 * targets configuration:
-	 * ['*|!not,these,levels|these,levels','filename|?consolelog|?consolerror|?consoledebug|?consoletrace'[,'log_%format']]
-	 * 
-	 * possible levels:
-	 * 'trace','debug','info','info','warn','error','fatal','file'
-	 * 
-	 * multiple entries for one level is permitted (logging to many locations)
-	 * 
-	 * filename substitutions:
-	 * %p = process ID
-	 * %h = hostname
-	 * %L = log level
-	 * %l = this.logLocation (only for 'file' type logs) 
-	 */
 	targets: [
 	    ['!warn,error,fatal,trace', '?consolelog'],
 	    ['warn,error,fatal', '?consoleerror'],
@@ -40,15 +62,6 @@ function swatk6_logger(opts) {
 	],
 	logLocation: './',
 	/*
-	 * %t = Date.toDateString()+' '+Date.toLocaleTimeString()
-	 * %T = Date.toISOString()
-	 * %j = Date.toJSON()
-	 * %p = process ID
-	 * %h = hostname
-	 * %L = log level
-	 * %E = system EOL
-	 * %S = trace stack
-	 * %m = message
 	 */
 	format: '[%L][%p@%h] %t: %m%E',
 	consoleNoFormat: false,
@@ -115,9 +128,10 @@ swatk6_logger.prototype.getEntries = function() {
     return out;
 };
 /**
- * Display entries derived from .getEntries() in a browser. 
+ * Display entries (on console) derived from .getEntries() in a browser. 
  * @param {Array} entries
  * @param {Boolean} [reversed=false]
+ * @returns {swatk6_logger}
  */
 swatk6_logger.prototype.displayEntries = function(entries,reversed) {
     if (typeof reversed === 'undefined') {
@@ -141,9 +155,11 @@ swatk6_logger.prototype.displayEntries = function(entries,reversed) {
 	    }
 	}.bind(this));
     }
+    return this;
 };
 /**
  * Return a normalized, no-frills timestamp string.
+ * @private
  * @param {Date} d
  */
 swatk6_logger.prototype.normalTS = function(d) {
@@ -167,6 +183,7 @@ swatk6_logger.prototype.normalTS = function(d) {
 };
 /**
  * Create the actual logline, using the format string from the setup, and the input arguments from the logging call.
+ * @private
  * 
  * The following tokens are translated:
  * %t = Date.toDateString()+' '+Date.toLocaleTimeString()
@@ -259,7 +276,7 @@ swatk6_logger.prototype.outputFormat = function(format,level) {
     return format;
 };
 /**
- * 
+ * Enable debug logging.
  * @returns {swatk6_logger}
  */
 swatk6_logger.prototype.enableDebug = function() {
@@ -267,7 +284,7 @@ swatk6_logger.prototype.enableDebug = function() {
     return this;
 };
 /**
- * 
+ * Disable debug logging totally.
  * @returns {swatk6_logger}
  */
 swatk6_logger.prototype.disableDebug = function() {
@@ -275,7 +292,7 @@ swatk6_logger.prototype.disableDebug = function() {
     return this;
 };
 /**
- * 
+ * Set the debug cutoff level for this instance.
  * @param {(Number|Boolean)} level if true, debugging is turned on with -1; if false, debugging is turned off; otherwise, it's a level definition
  * @returns {swatk6_logger}
  */
@@ -292,7 +309,7 @@ swatk6_logger.prototype.setDebugLevel = function(level) {
     return this;
 };
 /**
- * 
+ * Enable tracing at the "trace" loglevel.
  * @returns {swatk6_logger}
  */
 swatk6_logger.prototype.enableTrace = function() {
@@ -300,7 +317,7 @@ swatk6_logger.prototype.enableTrace = function() {
     return this;
 };
 /**
- * 
+ * Disable tracing at the "trace" loglevel.
  * @returns {swatk6_logger}
  */
 swatk6_logger.prototype.disableTrace = function() {
@@ -309,6 +326,7 @@ swatk6_logger.prototype.disableTrace = function() {
 };
 /**
  * Make an actual logline and store it in the hold-release buffer if necessary.
+ * @private
  * @returns {swatk6_logger}
  */
 swatk6_logger.prototype.toTarget = function(level) {
@@ -387,6 +405,11 @@ swatk6_logger.prototype.toTarget = function(level) {
     }
     return this;
 };
+/**
+ * Log the arguments at the "log" level.
+ * @param {...*} 
+ * @returns {swatk6_logger}
+ */
 swatk6_logger.prototype.log = function() {
     var params = new Array(arguments.length);
     for(var i = 0; i < params.length; ++i) {
@@ -394,6 +417,11 @@ swatk6_logger.prototype.log = function() {
     }
     return this.toTarget.apply(this,params);
 };
+/**
+ * Log the arguments at the "trace" level, without respect to the current debug level cutoff.
+ * @param {...*} 
+ * @returns {swatk6_logger}
+ */
 swatk6_logger.prototype.trace = function() {
     var params = new Array(arguments.length);
     for(var i = 0; i < params.length; ++i) {
@@ -402,6 +430,11 @@ swatk6_logger.prototype.trace = function() {
     params.unshift('trace');
     return this.toTarget.apply(this,params);
 };
+/**
+ * Log the arguments at the "debug" level, without respect to the current debug level cutoff.
+ * @param {...*} 
+ * @returns {swatk6_logger}
+ */
 swatk6_logger.prototype.debug = function() {
     var params = new Array(arguments.length);
     for(var i = 0; i < params.length; ++i) {
@@ -410,21 +443,32 @@ swatk6_logger.prototype.debug = function() {
     params.unshift('debug');
     return this.toTarget.apply(this,params);
 };
-swatk6_logger.prototype.debuglevel = function() {
+/**
+ * Log the arguments at the "debug" level; will only log if the level argument is less than or equal to the current level.
+ * @param {Number} level the log event's debug level
+ * @param {...*} 
+ * @returns {swatk6_logger}
+ */
+swatk6_logger.prototype.debuglevel = function(level) {
     var params = new Array(arguments.length);
     for(var i = 0; i < params.length; ++i) {
         params[i] = arguments[i];
     }
-    var level = params.shift();
+    level = params.shift();
     if (this.doDebug===false) {
-	return true;
+	return this;
     }
     if (this.debugLevel!==-1 && this.debugLevel<level) {
-	return true;
+	return this;
     }
     params.unshift('debug');
     return this.toTarget.apply(this,params);
 };
+/**
+ * Log the arguments at the "info" level.
+ * @param {...*} 
+ * @returns {swatk6_logger}
+ */
 swatk6_logger.prototype.info = function() {
     var params = new Array(arguments.length);
     for(var i = 0; i < params.length; ++i) {
@@ -433,6 +477,11 @@ swatk6_logger.prototype.info = function() {
     params.unshift('info');
     return this.toTarget.apply(this,params);
 };
+/**
+ * Log the arguments at the "warn" level.
+ * @param {...*} 
+ * @returns {swatk6_logger}
+ */
 swatk6_logger.prototype.warn = function() {
     var params = new Array(arguments.length);
     for(var i = 0; i < params.length; ++i) {
@@ -441,6 +490,11 @@ swatk6_logger.prototype.warn = function() {
     params.unshift('warn');
     return this.toTarget.apply(this,params);
 };
+/**
+ * Log the arguments at the "error" level.
+ * @param {...*} 
+ * @returns {swatk6_logger}
+ */
 swatk6_logger.prototype.error = function() {
     var params = new Array(arguments.length);
     for(var i = 0; i < params.length; ++i) {
@@ -449,6 +503,11 @@ swatk6_logger.prototype.error = function() {
     params.unshift('error');
     return this.toTarget.apply(this,params);
 };
+/**
+ * Log the arguments at the "fatal" level.
+ * @param {...*} 
+ * @returns {swatk6_logger}
+ */
 swatk6_logger.prototype.fatal = function() {
     var params = new Array(arguments.length);
     for(var i = 0; i < params.length; ++i) {
@@ -457,7 +516,13 @@ swatk6_logger.prototype.fatal = function() {
     params.unshift('fatal');
     return this.toTarget.apply(this,params);
 };
-swatk6_logger.prototype.file = function() {
+/**
+ * Log the arguments at the "file" level.
+ * @param {String} fname filename
+ * @param {...*} 
+ * @returns {swatk6_logger}
+ */
+swatk6_logger.prototype.file = function(fname) {
     var params = new Array(arguments.length);
     for(var i = 0; i < params.length; ++i) {
         params[i] = arguments[i];
