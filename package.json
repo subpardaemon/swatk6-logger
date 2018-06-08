@@ -1,6 +1,6 @@
 {
   "name": "@swatk6/logger",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "A simple logger that offers a retain-release feature for remote debugging",
   "main": "index.js",
   "scripts": {
