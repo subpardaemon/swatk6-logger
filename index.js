@@ -399,7 +399,7 @@ swatk6_logger.prototype.toTarget = function(level) {
 		if (level !== 'file') {
 		    fn = this.location + fn;
 		}
-		fs.appendFile(fn, m, 'utf8');
+		fs.appendFile(fn, m, 'utf8', function() {});
 	    }
 	}
     }
